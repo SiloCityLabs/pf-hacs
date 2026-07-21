@@ -1,0 +1,9 @@
+{
+  "name": "Planet Fitness Check-In",
+  "content_in_root": false,
+  "filename": "planet_fitness_checkin",
+  "country": ["US", "CA", "MX"],
+  "homeassistant": "2024.6.0",
+  "render_readme": true,
+  "iot_class": "Calculated"
+}

@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Planet Fitness Check-In",
+        "description": "Enter the email for your Planet Fitness membership. A 6-digit login code will be sent to that address (same Auth0 passwordless flow as the official app).\n\n{help}",
+        "data": {
+          "email": "Email"
+        }
+      },
+      "code": {
+        "title": "Enter email code",
+        "description": "Check your inbox for a code sent to **{email}**, then enter it below. The setup wizard waits here until you submit the code.",
+        "data": {
+          "code": "6-digit code"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach Planet Fitness / Auth0. Try again.",
+      "invalid_auth": "Authentication failed. Try again.",
+      "invalid_code": "That code is invalid or expired. Request a new login (go back) or try the latest email.",
+      "missing_device": "Logged in, but no device id is registered. Open the official Planet Fitness app once while logged in, then retry setup.",
+      "auth_failed": "Login failed. Try again."
+    },
+    "abort": {
+      "already_configured": "This Planet Fitness account is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "email": { "name": "Email" },
+      "account_id": { "name": "Account ID" },
+      "device_id": { "name": "Device ID" },
+      "qr_payload": { "name": "QR payload" },
+      "seconds_remaining": { "name": "Code seconds remaining" }
+    },
+    "image": {
+      "qr_image": { "name": "Check-in QR" }
+    },
+    "button": {
+      "refresh_qr": { "name": "Refresh QR" }
+    }
+  }
+}
