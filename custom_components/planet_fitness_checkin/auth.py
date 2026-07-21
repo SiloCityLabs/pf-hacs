@@ -72,6 +72,21 @@ def _extract_app_callback(text: str | None) -> str | None:
     return match.group(0) if match else None
 
 
+def _absolute_url(base: str, url: str | None) -> str | None:
+    """Resolve Auth0 relative Locations (e.g. /authorize/resume?...) against base."""
+    if not url:
+        return None
+    if url.startswith(APP_SCHEME) or url.startswith("http://") or url.startswith(
+        "https://"
+    ):
+        return url
+    if url.startswith("//"):
+        return "https:" + url
+    # Relative path or root-absolute path
+    origin = base if base.startswith("http") else AUTH_BASE
+    return urljoin(origin if origin.endswith("/") else origin + "/", url)
+
+
 def _extract_hidden_fields(html: str) -> dict[str, str]:
     fields: dict[str, str] = {}
     for tag in re.findall(r"<input[^>]*>", html, flags=re.I):
@@ -277,6 +292,7 @@ async def _post_and_follow_to_app_scheme(
     )
 
     for hop in range(12):
+        loc = _absolute_url(current or AUTH_BASE, loc)
         callback = _coerce_callback(loc, body, current)
         if callback:
             return callback
@@ -294,13 +310,14 @@ async def _post_and_follow_to_app_scheme(
         else:
             match = _RESUME_RE.search(body.replace("&amp;", "&"))
             if match:
-                resume = match.group(0)
+                resume = _absolute_url(current or AUTH_BASE, match.group(0))
 
         next_action = _extract_form_action(body, current)
         next_fields = _extract_hidden_fields(body)
 
-        if resume and not next_action:
-            _LOGGER.debug("Following resume redirect hop=%s -> %s", hop, resume[:80])
+        # Prefer following resume redirects over re-posting unrelated forms
+        if resume:
+            _LOGGER.debug("Following resume redirect hop=%s -> %s", hop, resume[:120])
             status, current, body, loc = await _request(http, "GET", resume)
             continue
 
@@ -337,8 +354,12 @@ async def _post_and_follow_to_app_scheme(
             )
             continue
 
-        if loc and loc.startswith("http"):
-            _LOGGER.debug("Following http Location hop=%s -> %s", hop, loc[:100])
+        if loc and (
+            loc.startswith("http://")
+            or loc.startswith("https://")
+            or loc.startswith(APP_SCHEME)
+        ):
+            _LOGGER.debug("Following Location hop=%s -> %s", hop, loc[:120])
             status, current, body, loc = await _request(http, "GET", loc)
             continue
 
