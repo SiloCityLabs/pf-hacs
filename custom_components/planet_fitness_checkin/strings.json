@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "PF Check-In (SiloCityLabs)",
-        "description": "Unofficial SiloCityLabs integration — not affiliated with Planet Fitness.\n\nEnter your membership email. A 6-digit login code will be sent (same Auth0 passwordless flow as the official app).\n\n{help}",
+        "title": "Planet Fitness Check-In",
+        "description": "Enter the email for your Planet Fitness membership. A 6-digit login code will be sent to that address (same Auth0 passwordless flow as the official app).\n\n{help}",
         "data": {
           "email": "Email"
         }

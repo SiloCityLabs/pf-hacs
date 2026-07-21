@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import ATTR_PAYLOAD, DOMAIN, MANUFACTURER, MODEL
+from .const import ATTR_PAYLOAD, DOMAIN, MANUFACTURER
 from .coordinator import PlanetFitnessCoordinator
 
 
@@ -41,9 +41,9 @@ class PlanetFitnessQrImage(CoordinatorEntity[PlanetFitnessCoordinator], ImageEnt
         self._attr_unique_id = f"{entry.entry_id}_qr_image"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"PF Check-In ({coordinator.email})",
+            "name": f"Planet Fitness ({coordinator.email})",
             "manufacturer": MANUFACTURER,
-            "model": MODEL,
+            "model": "Digital Keytag",
         }
         self._attr_image_last_updated = dt_util.utcnow()
 

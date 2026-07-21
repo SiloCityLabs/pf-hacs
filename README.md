@@ -1,10 +1,12 @@
-# PF Check-In for Home Assistant
+# Planet Fitness Check-In for Home Assistant
 
-**By [SiloCityLabs](https://github.com/SiloCityLabs).** Unofficial Home Assistant integration that generates a Planet Fitness **digital keytag / check-in QR code** without the mobile app.
+Custom [Home Assistant](https://www.home-assistant.io/) integration that generates your Planet Fitness **digital keytag / check-in QR code** without the mobile app.
 
 Setup uses the same Auth0 **email code** login as the official app. After setup, QR codes are computed **locally** (TOTP) — no continuous API polling.
 
-> **Not affiliated with Planet Fitness.** This is an independent SiloCityLabs project. For personal use with your own membership. Gym door scanners and account policies can change without notice.
+> **Unofficial.** Not affiliated with Planet Fitness. For personal use with your own membership. Gym door scanners and account policies can change without notice.
+
+Inspired by the HACS layout of [SiloCityLabs/Creality-Control](https://github.com/SiloCityLabs/Creality-Control).
 
 ---
 
@@ -51,7 +53,7 @@ After the one-time login during setup, Home Assistant only needs the stored `acc
 1. Install [HACS](https://hacs.xyz/) if needed.
 2. **HACS → Integrations → ⋮ → Custom repositories**
 3. Add your repository URL (after you push this folder), category **Integration**.
-4. Install **PF Check-In (SiloCityLabs)**.
+4. Install **Planet Fitness Check-In**.
 5. Restart Home Assistant.
 
 ### Manual
@@ -87,7 +89,7 @@ pf-hacs/
 ## Configuration (setup wizard)
 
 1. **Settings → Devices & services → Add integration**
-2. Search for **PF Check-In**
+2. Search for **Planet Fitness Check-In**
 3. Enter your membership **email**
 4. Wait for the Auth0 email with a **6-digit code** (check spam)
 5. Enter the code in the wizard (the UI waits on this step)
@@ -113,7 +115,7 @@ If the code is wrong or expired, the flow starts a **new** email challenge so yo
 | `image` | Check-in QR | PNG suitable for dashboards |
 | `button` | Refresh QR | Force regenerate payload + PNG locally |
 
-Device name: **PF Check-In (`your@email`)** — manufacturer **SiloCityLabs** (not Planet Fitness).
+Device name: **Planet Fitness (`your@email`)**.
 
 ---
 
@@ -126,7 +128,7 @@ type: vertical-stack
 cards:
   - type: markdown
     content: |
-      ## PF check-in
+      ## Planet Fitness check-in
       Code refreshes every 30 seconds. Tap refresh before you scan if needed.
   - type: picture-entity
     entity: image.planet_fitness_your_email_check_in_qr
@@ -201,7 +203,7 @@ PY
 
 ## Disclaimer
 
-Published by **SiloCityLabs**. Not affiliated with, endorsed by, or supported by Planet Fitness, Inc. Use at your own risk. Membership terms still apply. Door hardware and backend validation are controlled by Planet Fitness and may reject unofficial clients.
+Not affiliated with, endorsed by, or supported by Planet Fitness, Inc. Use at your own risk. Membership terms still apply. Door hardware and backend validation are controlled by Planet Fitness and may reject unofficial clients.
 
 ## License
 
