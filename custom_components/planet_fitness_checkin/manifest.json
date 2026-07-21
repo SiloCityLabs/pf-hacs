@@ -1,16 +1,16 @@
 {
   "domain": "planet_fitness_checkin",
-  "name": "Planet Fitness Check-In",
-  "codeowners": [],
+  "name": "PF Check-In (SiloCityLabs)",
+  "codeowners": ["@SiloCityLabs"],
   "config_flow": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "requirements": [
     "segno>=1.6.0"
   ],
   "dependencies": [],
   "iot_class": "calculated",
   "homeassistant": "2024.6.0",
-  "documentation": "https://github.com/YOUR_ORG/planet-fitness-checkin",
-  "issue_tracker": "https://github.com/YOUR_ORG/planet-fitness-checkin/issues",
+  "documentation": "https://github.com/SiloCityLabs/pf-hacs",
+  "issue_tracker": "https://github.com/SiloCityLabs/pf-hacs/issues",
   "integration_type": "service"
 }

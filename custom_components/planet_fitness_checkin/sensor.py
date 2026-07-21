@@ -15,6 +15,8 @@ from .const import (
     CONF_DEVICE_ID,
     CONF_EMAIL,
     DOMAIN,
+    MANUFACTURER,
+    MODEL,
 )
 from .coordinator import PlanetFitnessCoordinator
 
@@ -75,9 +77,9 @@ class PlanetFitnessSensor(CoordinatorEntity[PlanetFitnessCoordinator], SensorEnt
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"Planet Fitness ({coordinator.email})",
-            "manufacturer": "Planet Fitness",
-            "model": "Digital Keytag",
+            "name": f"PF Check-In ({coordinator.email})",
+            "manufacturer": MANUFACTURER,
+            "model": MODEL,
         }
 
     @property

@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER, MODEL
 from .coordinator import PlanetFitnessCoordinator
 
 
@@ -37,9 +37,9 @@ class PlanetFitnessRefreshButton(
         self._attr_unique_id = f"{entry.entry_id}_refresh_qr"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"Planet Fitness ({coordinator.email})",
-            "manufacturer": "Planet Fitness",
-            "model": "Digital Keytag",
+            "name": f"PF Check-In ({coordinator.email})",
+            "manufacturer": MANUFACTURER,
+            "model": MODEL,
         }
 
     async def async_press(self) -> None:

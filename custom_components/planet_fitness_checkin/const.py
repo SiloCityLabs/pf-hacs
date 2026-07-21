@@ -2,6 +2,10 @@
 
 DOMAIN = "planet_fitness_checkin"
 
+# Shown in HA device card as "By …" — must not imply Planet Fitness publishes this.
+MANUFACTURER = "SiloCityLabs"
+MODEL = "Unofficial check-in (not affiliated)"
+
 CONF_EMAIL = "email"
 CONF_ACCOUNT_ID = "account_id"
 CONF_DEVICE_ID = "device_id"

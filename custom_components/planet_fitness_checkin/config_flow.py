@@ -66,7 +66,7 @@ class PlanetFitnessCheckinConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=STEP_USER,
             errors=errors,
             description_placeholders={
-                "help": "Use the same email as the Planet Fitness mobile app."
+                "help": "Unofficial SiloCityLabs integration — not affiliated with Planet Fitness. Use the same email as the official mobile app."
             },
         )
 
@@ -99,7 +99,7 @@ class PlanetFitnessCheckinConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(result.account_id.lower())
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"Planet Fitness ({result.email})",
+                    title=f"PF Check-In ({result.email})",
                     data={
                         CONF_EMAIL: result.email,
                         CONF_ACCOUNT_ID: result.account_id,
