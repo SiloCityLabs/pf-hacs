@@ -1,6 +1,6 @@
 # Planet Fitness Check-In for Home Assistant
 
-Custom [Home Assistant](https://www.home-assistant.io/) integration that generates your Planet Fitness **digital keytag / check-in QR code** without the mobile app.
+Custom [Home Assistant](https://www.home-assistant.io/) integration that generates your Planet Fitness **digital keytag / check-in QR code** without the mobile app. My goal towards an app free life has me creating hacs for apps that are forced for some services.
 
 Setup uses the same Auth0 **email code** login as the official app. After setup, QR codes are computed **locally** (TOTP) — no continuous API polling.
 
