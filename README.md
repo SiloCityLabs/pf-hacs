@@ -6,8 +6,6 @@ Setup uses the same Auth0 **email code** login as the official app. After setup,
 
 > **Unofficial.** Not affiliated with Planet Fitness. For personal use with your own membership. Gym door scanners and account policies can change without notice.
 
-Inspired by the HACS layout of [SiloCityLabs/Creality-Control](https://github.com/SiloCityLabs/Creality-Control).
-
 ## Screenshot
 
 ![Planet Fitness Check-In device in Home Assistant](images/screenshot.png)
