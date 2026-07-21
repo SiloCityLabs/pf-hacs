@@ -26,6 +26,15 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_APP_CALLBACK_RE = re.compile(
+    r"com\.planetfitness\.pfmobileauth://callback\?[^\s\"'<>\\]+",
+    re.I,
+)
+_RESUME_RE = re.compile(
+    r"https?://login\.planetfitness\.com/authorize/resume\?[^\s\"'<>\\]+",
+    re.I,
+)
+
 
 def _pkce_pair() -> tuple[str, str]:
     verifier = base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode()
@@ -51,6 +60,44 @@ def _dig(obj: Any, *path: str) -> Any:
             return None
         cur = match
     return cur
+
+
+def _extract_app_callback(text: str | None) -> str | None:
+    if not text:
+        return None
+    match = _APP_CALLBACK_RE.search(text.replace("&amp;", "&"))
+    return match.group(0) if match else None
+
+
+def _extract_hidden_fields(html: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for tag in re.findall(r"<input[^>]*>", html, flags=re.I):
+        if not re.search(r'type=["\']hidden["\']', tag, flags=re.I):
+            # Still accept code/state inputs without type=hidden
+            if not re.search(r'name=["\'](state|code)["\']', tag, flags=re.I):
+                continue
+        name_m = re.search(r'name=["\']([^"\']+)["\']', tag, flags=re.I)
+        val_m = re.search(r'value=["\']([^"\']*)["\']', tag, flags=re.I)
+        if name_m:
+            fields[name_m.group(1)] = val_m.group(1) if val_m else ""
+    return fields
+
+
+def _extract_form_action(html: str, current_url: str) -> str | None:
+    match = re.search(
+        r'<form[^>]*data-form-primary=["\']true["\'][^>]*action=["\']([^"\']*)["\']',
+        html,
+        flags=re.I,
+    )
+    if not match:
+        match = re.search(r'<form[^>]+action=["\']([^"\']+)["\']', html, flags=re.I)
+    if not match:
+        # Auth0 ULP often omits action (POST to current URL)
+        if re.search(r'<form[^>]*method=["\']post["\']', html, flags=re.I):
+            return current_url
+        return None
+    action = match.group(1).strip() or current_url
+    return urljoin(current_url, action)
 
 
 @dataclass
@@ -84,15 +131,18 @@ class PlanetFitnessAuthError(Exception):
 
 
 async def start_email_login(email: str) -> AuthSession:
-    """Begin Auth0 authorize (connection=email) and return the challenge session.
-
-    Auth0 emails a 6-digit code to ``email``. Caller must eventually close
-    ``AuthSession.http`` (see ``complete_email_login`` / config flow).
-    """
+    """Begin Auth0 authorize (connection=email) and return the challenge session."""
     verifier, challenge = _pkce_pair()
     state = base64.urlsafe_b64encode(os.urandom(16)).rstrip(b"=").decode()
     jar = aiohttp.CookieJar(unsafe=True)
-    http = aiohttp.ClientSession(cookie_jar=jar, headers={"User-Agent": USER_AGENT})
+    http = aiohttp.ClientSession(
+        cookie_jar=jar,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        },
+    )
 
     authorize = f"{AUTH_BASE}/authorize?" + urlencode(
         {
@@ -150,8 +200,8 @@ async def complete_email_login(auth: AuthSession, code: str) -> LoginResult:
             raise PlanetFitnessAuthError("Code must be 6 digits", code="invalid_code")
 
         headers = {
-            "Accept": "text/html,application/json",
             "Content-Type": "application/x-www-form-urlencoded",
+            "Origin": AUTH_BASE,
             "Referer": auth.challenge_url,
         }
         form = {"state": auth.form_state, "code": code}
@@ -160,6 +210,7 @@ async def complete_email_login(auth: AuthSession, code: str) -> LoginResult:
             auth.http, auth.challenge_url, form, headers
         )
         auth_code = _parse_auth_code(redirect_url)
+        _LOGGER.debug("Captured Auth0 authorization code")
 
         token_body = {
             "grant_type": "authorization_code",
@@ -192,8 +243,7 @@ async def complete_email_login(auth: AuthSession, code: str) -> LoginResult:
             refresh_token=refresh,
         )
     finally:
-        if not auth.http.closed:
-            await auth.http.close()
+        await close_auth_session(auth)
 
 
 async def close_auth_session(auth: AuthSession | None) -> None:
@@ -208,56 +258,173 @@ async def _post_and_follow_to_app_scheme(
     form: dict[str, str],
     headers: dict[str, str],
 ) -> str:
-    """POST the OTP form and follow redirects until the app callback URL."""
-    async with http.post(url, data=form, headers=headers, allow_redirects=False) as resp:
-        loc = resp.headers.get("Location")
-        body = await resp.text()
-        current = loc or str(resp.url)
+    """POST the OTP form and follow redirects/forms until the app callback URL."""
+    status, current, body, loc = await _request(
+        http, "POST", url, data=form, headers=headers
+    )
+    _LOGGER.debug(
+        "OTP POST -> status=%s loc=%s url=%s body_len=%s",
+        status,
+        loc,
+        current,
+        len(body),
+    )
 
-    if current.startswith(APP_SCHEME):
-        return current
+    for hop in range(12):
+        callback = _coerce_callback(loc, body, current)
+        if callback:
+            return callback
 
-    found = re.search(r"com\.planetfitness\.pfmobileauth://callback\?[^\s\"'<>]+", body)
-    if found:
-        return found.group(0).replace("&amp;", "&")
+        if _looks_like_invalid_code(body):
+            raise PlanetFitnessAuthError(
+                "Auth0 rejected the code (invalid or expired)",
+                code="invalid_code",
+            )
 
-    for _ in range(10):
-        if current.startswith(APP_SCHEME):
-            return current
-        if not current.startswith("http"):
-            break
-        try:
-            async with http.get(current, allow_redirects=False) as resp:
-                loc = resp.headers.get("Location")
-                body = await resp.text()
-                if loc and loc.startswith(APP_SCHEME):
-                    return loc
-                if loc:
-                    current = urljoin(current, loc)
-                    continue
-                found = re.search(
-                    r"com\.planetfitness\.pfmobileauth://callback\?[^\s\"'<>]+", body
+        # Intermediate Auth0 resume / continue form (common on New Universal Login)
+        resume = None
+        if loc and "authorize/resume" in loc:
+            resume = loc
+        else:
+            match = _RESUME_RE.search(body.replace("&amp;", "&"))
+            if match:
+                resume = match.group(0)
+
+        next_action = _extract_form_action(body, current)
+        next_fields = _extract_hidden_fields(body)
+
+        if resume and not next_action:
+            _LOGGER.debug("Following resume redirect hop=%s -> %s", hop, resume[:80])
+            status, current, body, loc = await _request(http, "GET", resume)
+            continue
+
+        if next_action and (
+            "resume" in next_action
+            or "callback" in next_action
+            or next_action.startswith(APP_SCHEME)
+            or hop == 0
+            or "authorize" in next_action
+        ):
+            # Avoid re-posting the OTP challenge form forever
+            if 'name="code"' in body and hop > 0 and "resume" not in next_action:
+                raise PlanetFitnessAuthError(
+                    "Still on code challenge after submit — code may be wrong",
+                    code="invalid_code",
                 )
-                if found:
-                    return found.group(0).replace("&amp;", "&")
-                if "Enter Code" in body or re.search(
-                    r"invalid|incorrect|expired", body, re.I
-                ):
-                    raise PlanetFitnessAuthError(
-                        "Auth0 rejected the code (invalid or expired)",
-                        code="invalid_code",
-                    )
-                break
-        except aiohttp.InvalidURL as err:
-            m = re.search(r"(com\.planetfitness\.pfmobileauth://[^\s]+)", str(err))
-            if m:
-                return m.group(1)
-            raise PlanetFitnessAuthError(str(err), code="cannot_connect") from err
+            post_headers = {
+                **headers,
+                "Referer": current,
+                "Origin": AUTH_BASE,
+            }
+            # For resume continue forms, state hidden field is enough
+            data = next_fields or form
+            if next_action.startswith(APP_SCHEME):
+                return next_action
+            _LOGGER.debug(
+                "Submitting continue form hop=%s action=%s fields=%s",
+                hop,
+                next_action[:100],
+                list(data),
+            )
+            status, current, body, loc = await _request(
+                http, "POST", next_action, data=data, headers=post_headers
+            )
+            continue
+
+        if loc and loc.startswith("http"):
+            _LOGGER.debug("Following http Location hop=%s -> %s", hop, loc[:100])
+            status, current, body, loc = await _request(http, "GET", loc)
+            continue
+
+        _LOGGER.warning(
+            "Auth redirect stuck hop=%s status=%s current=%s loc=%s snippet=%s",
+            hop,
+            status,
+            current[:120],
+            (loc or "")[:120],
+            body[:240].replace("\n", " "),
+        )
+        break
 
     raise PlanetFitnessAuthError(
         "Could not capture app redirect after submitting code",
-        code="cannot_connect",
+        code="redirect_failed",
     )
+
+
+def _coerce_callback(loc: str | None, body: str, current: str) -> str | None:
+    for candidate in (loc, current, body):
+        if not candidate:
+            continue
+        if candidate.startswith(APP_SCHEME):
+            return candidate
+        found = _extract_app_callback(candidate)
+        if found:
+            return found
+    return None
+
+
+def _looks_like_invalid_code(body: str) -> bool:
+    if not body:
+        return False
+    if 'name="code"' not in body:
+        return False
+    return bool(
+        re.search(
+            r"(invalid|incorrect|expired|wrong code|try again)",
+            body,
+            flags=re.I,
+        )
+    )
+
+
+async def _request(
+    http: aiohttp.ClientSession,
+    method: str,
+    url: str,
+    data: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
+) -> tuple[int, str, str, str | None]:
+    """Perform one request without following redirects; return status/url/body/Location."""
+    if url.startswith(APP_SCHEME):
+        return 302, url, "", url
+
+    try:
+        async with http.request(
+            method,
+            url,
+            data=data,
+            headers=headers,
+            allow_redirects=False,
+        ) as resp:
+            # Raw Location first (custom schemes may break yarl URL helpers)
+            loc = resp.headers.get("Location") or resp.headers.get("location")
+            try:
+                body = await resp.text(errors="replace")
+            except Exception:  # noqa: BLE001
+                body = ""
+            final = str(resp.url)
+            return resp.status, final, body, loc
+    except aiohttp.InvalidURL as err:
+        # Some aiohttp/yarl paths raise when encountering the app scheme
+        text = str(err)
+        callback = _extract_app_callback(text) or (
+            text if text.startswith(APP_SCHEME) else None
+        )
+        if callback:
+            return 302, callback, "", callback
+        raise PlanetFitnessAuthError(text, code="redirect_failed") from err
+    except aiohttp.ClientError as err:
+        text = str(err)
+        callback = _extract_app_callback(text)
+        if callback:
+            return 302, callback, "", callback
+        if APP_SCHEME in text:
+            # e.g. "Cannot connect to host com.planetfitness..."
+            m = re.search(r"(com\.planetfitness\.pfmobileauth://\S+)", text)
+            if m:
+                return 302, m.group(1).rstrip("',)"), "", m.group(1).rstrip("',)")
+        raise
 
 
 def _parse_auth_code(redirect_url: str) -> str:
@@ -266,7 +433,7 @@ def _parse_auth_code(redirect_url: str) -> str:
     if not code:
         raise PlanetFitnessAuthError(
             f"No authorization code in redirect: {redirect_url}",
-            code="cannot_connect",
+            code="redirect_failed",
         )
     return code
 

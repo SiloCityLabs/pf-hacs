@@ -3,7 +3,7 @@
   "name": "Planet Fitness Check-In",
   "codeowners": [],
   "config_flow": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "requirements": ["segno>=1.6.0"],
   "dependencies": [],
   "iot_class": "calculated",

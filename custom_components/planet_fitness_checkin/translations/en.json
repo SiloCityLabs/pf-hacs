@@ -19,7 +19,8 @@
     "error": {
       "cannot_connect": "Could not reach Planet Fitness / Auth0. Try again.",
       "invalid_auth": "Authentication failed. Try again.",
-      "invalid_code": "That code is invalid or expired. Request a new login (go back) or try the latest email.",
+      "invalid_code": "That code is invalid or expired. A new code has been emailed — enter the latest one.",
+      "redirect_failed": "Signed in, but Auth0 redirect handling failed. Try again with a fresh email code.",
       "missing_device": "Logged in, but no device id is registered. Open the official Planet Fitness app once while logged in, then retry setup.",
       "auth_failed": "Login failed. Try again."
     },

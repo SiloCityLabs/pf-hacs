@@ -82,15 +82,19 @@ class PlanetFitnessCheckinConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except PlanetFitnessAuthError as err:
                 _LOGGER.warning("Login complete failed: %s", err)
                 errors["base"] = err.code
-                # Start a fresh challenge so the user can use a new emailed code
+                # Always start a fresh challenge so the next code is valid
+                try:
+                    self._auth = await start_email_login(self._email)
+                except Exception as start_err:  # noqa: BLE001
+                    _LOGGER.warning("Could not restart login challenge: %s", start_err)
+                    self._auth = None
+            except (aiohttp.ClientError, TimeoutError, OSError) as err:
+                _LOGGER.warning("Network error completing login: %s", err)
+                errors["base"] = "cannot_connect"
                 try:
                     self._auth = await start_email_login(self._email)
                 except Exception:  # noqa: BLE001
                     self._auth = None
-                    errors["base"] = err.code
-            except (aiohttp.ClientError, TimeoutError, OSError) as err:
-                _LOGGER.warning("Network error completing login: %s", err)
-                errors["base"] = "cannot_connect"
             else:
                 await self.async_set_unique_id(result.account_id.lower())
                 self._abort_if_unique_id_configured()
