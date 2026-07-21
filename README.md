@@ -8,6 +8,10 @@ Setup uses the same Auth0 **email code** login as the official app. After setup,
 
 Inspired by the HACS layout of [SiloCityLabs/Creality-Control](https://github.com/SiloCityLabs/Creality-Control).
 
+## Screenshot
+
+![Planet Fitness Check-In device in Home Assistant](images/screenshot.png)
+
 ---
 
 ## Features
