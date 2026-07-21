@@ -15,13 +15,16 @@ import aiohttp
 
 from .const import (
     API_BASE,
+    API_USER_AGENT,
     APP_SCHEME,
     AUDIENCE,
     AUTH_BASE,
+    AUTH_USER_AGENT,
     CLIENT_ID,
+    DEFAULT_COUNTRY_CODE,
+    DEFAULT_UI_LOCALES,
     REDIRECT_URI,
     SCOPE,
-    USER_AGENT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -138,7 +141,7 @@ async def start_email_login(email: str) -> AuthSession:
     http = aiohttp.ClientSession(
         cookie_jar=jar,
         headers={
-            "User-Agent": USER_AGENT,
+            "User-Agent": AUTH_USER_AGENT,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         },
@@ -157,6 +160,9 @@ async def start_email_login(email: str) -> AuthSession:
             "code_challenge_method": "S256",
             "state": state,
             "prompt": "login",
+            # Same extras the official app LoginUniversal() sends
+            "ui_locales": DEFAULT_UI_LOCALES,
+            "ext-countryCode": DEFAULT_COUNTRY_CODE,
         }
     )
 
@@ -428,14 +434,22 @@ async def _request(
 
 
 def _parse_auth_code(redirect_url: str) -> str:
-    qs = urlparse(redirect_url).query
-    code = parse_qs(qs).get("code", [None])[0]
-    if not code:
+    qs = parse_qs(urlparse(redirect_url).query)
+    code = qs.get("code", [None])[0]
+    if code:
+        return code
+    err = qs.get("error", [None])[0]
+    if err:
+        desc = qs.get("error_description", [""])[0]
         raise PlanetFitnessAuthError(
-            f"No authorization code in redirect: {redirect_url}",
-            code="redirect_failed",
+            f"Auth0 rejected login: {err}"
+            + (f" ({desc})" if desc else ""),
+            code="auth0_denied",
         )
-    return code
+    raise PlanetFitnessAuthError(
+        f"No authorization code in redirect: {redirect_url}",
+        code="redirect_failed",
+    )
 
 
 async def _fetch_account_device(
@@ -444,7 +458,7 @@ async def _fetch_account_device(
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/json",
-        "User-Agent": USER_AGENT,
+        "User-Agent": API_USER_AGENT,
     }
     details: dict[str, Any] = {}
     async with http.get(f"{API_BASE}/user-details?", headers=headers) as resp:

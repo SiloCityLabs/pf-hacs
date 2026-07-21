@@ -16,7 +16,16 @@ AUDIENCE = "https://*.api.planetfitness.com"
 SCOPE = "openid offline_access"
 REDIRECT_URI = "com.planetfitness.pfmobileauth://callback"
 APP_SCHEME = "com.planetfitness.pfmobileauth://"
-USER_AGENT = "pfx-mobile"
+# Auth0 Universal Login runs in a WebView/browser — match that (and our working pf_login.py).
+# API calls use the app HttpClient UA ("pfx-mobile"), not the Auth0 page UA.
+AUTH_USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+)
+API_USER_AGENT = "pfx-mobile"
+# App LoginUniversal() also sends these on authorize
+DEFAULT_COUNTRY_CODE = "US"
+DEFAULT_UI_LOCALES = "en"
 
 # TOTP matches Otp.NET defaults used by the mobile app
 TOTP_STEP_SECONDS = 30
