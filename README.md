@@ -27,16 +27,26 @@ Setup uses the same Auth0 **email code** login as the official app. After setup,
 
 ## How the QR works
 
-The mobile app (new / “NewGen” users) builds:
+The official app picks a format from `UserDetails.NewGenUser`:
 
-```text
-{AccountId}:{TOTP}
-```
+| Account | App logic | Payload |
+|--------|-----------|---------|
+| **NewGen** (`NewGenUser == true`) | `AccountId` + TOTP from `DeviceId` | `{AccountId}:{6-digit-TOTP}` |
+| **Legacy** (`NewGenUser` false) | `Membership.AbcBarcode` + channel/time suffix | `{AbcBarcode}/mobile/{MMddyyyy-HHmmss}` (UTC) |
 
-- **Secret** = UTF-8 bytes of `personalization.deviceId` (Base32 round-trip in the app is a no-op)
-- **TOTP** = SHA-1, 30-second step, 6 digits (Otp.NET defaults)
+Legacy details (from `KeytagService.ExtendQrCodeIfNeeded`):
 
-After the one-time login during setup, Home Assistant only needs the stored `account_id` + `device_id`. Regenerating the QR never hits `api.planetfitness.com`.
+- Append `/mobile` when the club POS wants a channel source (`QRCodeSuffix.Mobile`)
+- Append `/{timestamp}` when `EnableQrCodeSuffix` is on — format `MMddyyyy-HHmmss` in **UTC**
+
+Home Assistant defaults to **Auto** (follows the `NewGenUser` flag from login). Override under **Configure** on the integration:
+
+- Auto (detect)
+- NewGen TOTP
+- Legacy `/mobile/{timestamp}`
+- Legacy barcode only
+
+After the one-time login, regenerating the QR never hits `api.planetfitness.com`. For older installs that only stored TOTP fields, open **Configure**, set format to **Legacy — mobile**, and paste your `AbcBarcode` if needed (the number before `/mobile/` in the official app QR).
 
 ---
 

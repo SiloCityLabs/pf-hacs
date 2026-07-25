@@ -10,7 +10,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     ATTR_PAYLOAD,
+    ATTR_QR_FORMAT,
+    ATTR_RESOLVED_FORMAT,
     ATTR_SECONDS_REMAINING,
+    CONF_ABC_BARCODE,
     CONF_ACCOUNT_ID,
     CONF_DEVICE_ID,
     CONF_EMAIL,
@@ -34,6 +37,16 @@ SENSORS: tuple[SensorEntityDescription, ...] = (
         key=CONF_DEVICE_ID,
         translation_key="device_id",
         icon="mdi:cellphone-key",
+    ),
+    SensorEntityDescription(
+        key=CONF_ABC_BARCODE,
+        translation_key="abc_barcode",
+        icon="mdi:barcode",
+    ),
+    SensorEntityDescription(
+        key=ATTR_RESOLVED_FORMAT,
+        translation_key="qr_format",
+        icon="mdi:file-code-outline",
     ),
     SensorEntityDescription(
         key=ATTR_PAYLOAD,
@@ -94,4 +107,6 @@ class PlanetFitnessSensor(CoordinatorEntity[PlanetFitnessCoordinator], SensorEnt
         return {
             ATTR_SECONDS_REMAINING: self.coordinator.data.get(ATTR_SECONDS_REMAINING),
             CONF_ACCOUNT_ID: self.coordinator.account_id,
+            ATTR_QR_FORMAT: self.coordinator.data.get(ATTR_QR_FORMAT),
+            ATTR_RESOLVED_FORMAT: self.coordinator.data.get(ATTR_RESOLVED_FORMAT),
         }

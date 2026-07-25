@@ -135,7 +135,9 @@ class LoginResult:
 
     email: str
     account_id: str
-    device_id: str
+    device_id: str | None
+    abc_barcode: str | None
+    new_gen_user: bool
     access_token: str | None = None
     refresh_token: str | None = None
 
@@ -254,12 +256,14 @@ async def complete_email_login(auth: AuthSession, code: str) -> LoginResult:
 
         access = tokens["access_token"]
         refresh = tokens.get("refresh_token")
-        account_id, device_id = await _fetch_account_device(auth.http, access)
+        profile = await _fetch_profile(auth.http, access)
 
         return LoginResult(
             email=auth.email,
-            account_id=account_id,
-            device_id=device_id,
+            account_id=profile["account_id"],
+            device_id=profile.get("device_id"),
+            abc_barcode=profile.get("abc_barcode"),
+            new_gen_user=bool(profile.get("new_gen_user")),
             access_token=access,
             refresh_token=refresh,
         )
@@ -473,9 +477,9 @@ def _parse_auth_code(redirect_url: str) -> str:
     )
 
 
-async def _fetch_account_device(
+async def _fetch_profile(
     http: aiohttp.ClientSession, access_token: str
-) -> tuple[str, str]:
+) -> dict[str, Any]:
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/json",
@@ -500,10 +504,40 @@ async def _fetch_account_device(
     device_id = _dig(root, "user", "personalization", "deviceId") or _dig(
         root, "personalization", "deviceId"
     )
-    if not account_id or not device_id:
+    # Membership.AbcBarcode is the legacy keytag body
+    abc_barcode = (
+        _dig(root, "user", "membership", "abcBarcode")
+        or _dig(root, "membership", "abcBarcode")
+        or _dig(root, "user", "abcBarcode")
+        or _dig(root, "abcBarcode")
+    )
+    new_gen = _dig(root, "user", "newGenUser")
+    if new_gen is None:
+        new_gen = _dig(root, "newGenUser")
+    new_gen_user = bool(new_gen) if new_gen is not None else False
+
+    if not account_id:
         raise PlanetFitnessAuthError(
-            "Profile missing accountId or personalization.deviceId "
-            "(open the official app once to register a device id, then retry)",
+            "Profile missing accountId",
+            code="cannot_connect",
+        )
+
+    if new_gen_user and not device_id:
+        raise PlanetFitnessAuthError(
+            "NewGen account missing personalization.deviceId "
+            "(open the official app once while logged in, then retry)",
             code="missing_device",
         )
-    return str(account_id), str(device_id)
+
+    if not new_gen_user and not abc_barcode:
+        raise PlanetFitnessAuthError(
+            "Legacy account missing membership.abcBarcode",
+            code="missing_barcode",
+        )
+
+    return {
+        "account_id": str(account_id),
+        "device_id": str(device_id) if device_id else None,
+        "abc_barcode": str(abc_barcode) if abc_barcode else None,
+        "new_gen_user": new_gen_user,
+    }

@@ -23,10 +23,23 @@
       "redirect_failed": "Signed in, but Auth0 redirect handling failed. Try again with a fresh email code.",
       "auth0_denied": "Auth0 rejected the login (account/support gate or bot check). Try again with a fresh email code, or complete login once in the official app first.",
       "missing_device": "Logged in, but no device id is registered. Open the official Planet Fitness app once while logged in, then retry setup.",
+      "missing_barcode": "Logged in, but no membership barcode (AbcBarcode) was found for this legacy account.",
       "auth_failed": "Login failed. Try again."
     },
     "abort": {
       "already_configured": "This Planet Fitness account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "QR code format",
+        "description": "Account type detected at login: **{detected}**. Auto follows that. Override if your club scanner needs a different payload.\n\nLegacy mobile format: `{AbcBarcode}/mobile/{MMddyyyy-HHmmss}` (UTC).",
+        "data": {
+          "qr_format": "QR format",
+          "abc_barcode": "Legacy AbcBarcode (optional override)"
+        }
+      }
     }
   },
   "entity": {
@@ -34,6 +47,8 @@
       "email": { "name": "Email" },
       "account_id": { "name": "Account ID" },
       "device_id": { "name": "Device ID" },
+      "abc_barcode": { "name": "Abc barcode" },
+      "qr_format": { "name": "QR format" },
       "qr_payload": { "name": "QR payload" },
       "seconds_remaining": { "name": "Code seconds remaining" }
     },
