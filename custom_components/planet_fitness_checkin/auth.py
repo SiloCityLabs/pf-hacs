@@ -504,17 +504,46 @@ async def _fetch_profile(
     device_id = _dig(root, "user", "personalization", "deviceId") or _dig(
         root, "personalization", "deviceId"
     )
-    # Membership.AbcBarcode is the legacy keytag body
-    abc_barcode = (
-        _dig(root, "user", "membership", "abcBarcode")
-        or _dig(root, "membership", "abcBarcode")
-        or _dig(root, "user", "abcBarcode")
-        or _dig(root, "abcBarcode")
-    )
-    new_gen = _dig(root, "user", "newGenUser")
+    # Legacy keytag: memberships[0].abcBarcode (not user.membership)
+    abc_barcode = None
+    memberships = _dig(root, "memberships") or _dig(root, "user", "memberships")
+    if isinstance(memberships, list):
+        for m in memberships:
+            if not isinstance(m, dict):
+                continue
+            cand = None
+            for k, v in m.items():
+                if k.lower() == "abcbarcode" and v:
+                    cand = v
+                    break
+            if cand:
+                abc_barcode = str(cand)
+                break
+    if not abc_barcode:
+        abc_barcode = (
+            _dig(root, "user", "membership", "abcBarcode")
+            or _dig(root, "membership", "abcBarcode")
+            or _dig(root, "user", "abcBarcode")
+            or _dig(root, "abcBarcode")
+        )
+        if abc_barcode is not None:
+            abc_barcode = str(abc_barcode)
+
+    # App: UserDetails?.NewGenUser — often at result root, not under user
+    new_gen = _dig(root, "newGenUser")
     if new_gen is None:
-        new_gen = _dig(root, "newGenUser")
+        new_gen = _dig(root, "user", "newGenUser")
     new_gen_user = bool(new_gen) if new_gen is not None else False
+
+    _LOGGER.info(
+        "Profile dig: account_id=%s device_id=%s new_gen=%s abc_barcode=%s "
+        "memberships=%s",
+        bool(account_id),
+        bool(device_id),
+        new_gen_user,
+        bool(abc_barcode),
+        len(memberships) if isinstance(memberships, list) else 0,
+    )
 
     if not account_id:
         raise PlanetFitnessAuthError(
