@@ -54,8 +54,8 @@ TOTP_DIGITS = 6
 LEGACY_CHANNEL_SUFFIX = "/mobile"
 LEGACY_TIMESTAMP_FORMAT = "%m%d%Y-%H%M%S"
 
-# Tick often enough for legacy second-precision timestamps and TOTP countdown
-UPDATE_INTERVAL_SECONDS = 1
+# Tick often enough for TOTP countdown / legacy QR; timestamp may lag a bit (app does too)
+UPDATE_INTERVAL_SECONDS = 30
 
 ATTR_SECONDS_REMAINING = "seconds_remaining"
 ATTR_PAYLOAD = "payload"

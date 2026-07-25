@@ -129,10 +129,8 @@ def qr_payload(
 def seconds_remaining(resolved_format: str, for_time: int | None = None) -> int:
     if for_time is None:
         for_time = int(time.time())
-    if resolved_format == QR_FORMAT_NEWGEN:
-        return TOTP_STEP_SECONDS - (for_time % TOTP_STEP_SECONDS)
-    # Legacy timestamp includes seconds — value changes every second
-    return 1
+    # Both NewGen TOTP and our coordinator refresh on a 30s cadence
+    return TOTP_STEP_SECONDS - (for_time % TOTP_STEP_SECONDS)
 
 
 def qr_png_bytes(payload: str, *, scale: int = 8) -> bytes:
