@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
@@ -26,6 +27,8 @@ from .const import (
     QR_FORMAT_AUTO,
     UPDATE_INTERVAL_SECONDS,
 )
+from .guest_coordinator import PlanetFitnessGuestCoordinator
+from .history_coordinator import PlanetFitnessHistoryCoordinator
 from .totp_qr import qr_payload, qr_png_bytes, seconds_remaining
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,6 +51,11 @@ class PlanetFitnessCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._forced = False
         self._last_payload: str | None = None
         self._png: bytes | None = None
+        self._options_snapshot = dict(entry.options)
+
+    def options_unchanged(self, entry: ConfigEntry) -> bool:
+        """True when an entry update only touched data (e.g. refreshed tokens)."""
+        return dict(entry.options) == self._options_snapshot
 
     @property
     def email(self) -> str:
@@ -124,3 +132,12 @@ class PlanetFitnessCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_PAYLOAD: payload,
             ATTR_SECONDS_REMAINING: remaining,
         }
+
+
+@dataclass
+class PlanetFitnessRuntime:
+    """Everything a platform needs for one config entry."""
+
+    coordinator: PlanetFitnessCoordinator
+    guests: PlanetFitnessGuestCoordinator | None = None
+    history: PlanetFitnessHistoryCoordinator | None = None

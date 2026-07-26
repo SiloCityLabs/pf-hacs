@@ -19,7 +19,7 @@
     "error": {
       "cannot_connect": "Could not reach Planet Fitness / Auth0. Try again.",
       "invalid_auth": "Authentication failed. Try again.",
-      "invalid_code": "That code is invalid or expired. A new code has been emailed — enter the latest one.",
+      "invalid_code": "That code is invalid or expired. A new code has been emailed \u2014 enter the latest one.",
       "redirect_failed": "Signed in, but Auth0 redirect handling failed. Try again with a fresh email code.",
       "auth0_denied": "Auth0 rejected the login (account/support gate or bot check). Try again with a fresh email code, or complete login once in the official app first.",
       "missing_device": "Logged in, but no device id is registered. Open the official Planet Fitness app once while logged in, then retry setup.",
@@ -44,19 +44,63 @@
   },
   "entity": {
     "sensor": {
-      "email": { "name": "Email" },
-      "account_id": { "name": "Account ID" },
-      "device_id": { "name": "Device ID" },
-      "abc_barcode": { "name": "Abc barcode" },
-      "qr_format": { "name": "QR format" },
-      "qr_payload": { "name": "QR payload" },
-      "seconds_remaining": { "name": "Code seconds remaining" }
+      "email": {
+        "name": "Email"
+      },
+      "account_id": {
+        "name": "Account ID"
+      },
+      "device_id": {
+        "name": "Device ID"
+      },
+      "abc_barcode": {
+        "name": "Abc barcode"
+      },
+      "qr_format": {
+        "name": "QR format"
+      },
+      "qr_payload": {
+        "name": "QR payload"
+      },
+      "seconds_remaining": {
+        "name": "Code seconds remaining"
+      },
+      "guest_count": {
+        "name": "Guests"
+      },
+      "guest_payload": {
+        "name": "Guest QR payload"
+      },
+      "checkin_count": {
+        "name": "Check-ins"
+      },
+      "last_checkin": {
+        "name": "Last check-in"
+      }
     },
     "image": {
-      "qr_image": { "name": "Check-in QR" }
+      "qr_image": {
+        "name": "Check-in QR"
+      },
+      "guest_qr_image": {
+        "name": "Guest QR"
+      }
     },
     "button": {
-      "refresh_qr": { "name": "Refresh QR" }
+      "refresh_qr": {
+        "name": "Refresh QR"
+      },
+      "refresh_guests": {
+        "name": "Refresh guests"
+      },
+      "refresh_checkins": {
+        "name": "Refresh check-ins"
+      }
+    },
+    "switch": {
+      "guest_access": {
+        "name": "Club access"
+      }
     }
   }
 }

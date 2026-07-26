@@ -22,6 +22,8 @@ Setup uses the same Auth0 **email code** login as the official app. After setup,
 | QR image | PNG `image` entity for Lovelace dashboards |
 | Refresh button | Forces a local QR regenerate (does **not** call Planet Fitness APIs) |
 | Local TOTP | Payload format `{AccountId}:{6-digit-TOTP}` matching the official app |
+| Black Card guests | One extra device per guest: approve (unlock) / lock, guest keytag QR, payload sensor |
+| Check-in history | Rolling 365-day count, last check-in timestamp, recent visits as attributes |
 
 ---
 
@@ -47,6 +49,45 @@ Home Assistant defaults to **Auto** (follows the `NewGenUser` flag from login). 
 - Legacy barcode only
 
 After the one-time login, regenerating the QR never hits `api.planetfitness.com`. For older installs that only stored TOTP fields, open **Configure**, set format to **Legacy — mobile**, and paste your `AbcBarcode` if needed (the number before `/mobile/` in the official app QR).
+
+---
+
+## Black Card guests
+
+If your membership has Black Card guest passes, each guest shows up as its own device linked to your check-in device.
+
+| Entity type | Name | Purpose |
+|-------------|------|---------|
+| `switch` | Club access | On = guest unlocked (approved) for club access |
+| `image` | Guest QR | Guest keytag QR, available while unlocked |
+| `sensor` | Guest QR payload | The scanned string, with the raw barcode as an attribute |
+| `sensor` | Guests | Guest count on the main device, with names/status attributes |
+| `button` | Refresh guests | Re-reads the guest list immediately |
+
+How it maps to the app:
+
+- `GET /black-card/guest` lists guests (`givenName`, `familyName`, `accessClub`).
+- `PUT /black-card/guest/{userId}/unlock` approves a guest **and** is the only call that returns their `barcode` — the app does this every time you tap a guest, and so does the switch.
+- `PUT /black-card/guest/{userId}/lock` revokes access.
+- Guest QR uses the legacy keytag format: `{barcode}/mobile/{MMddyyyy-HHmmss}` (UTC), or plain barcode if you picked **Legacy barcode only**.
+
+The guest list is polled every 5 minutes; QR payloads re-render locally on the same 30-second tick as your own keytag. Guests enrolled in the Unified Club Pass pilot cannot be locked — the API rejects it with `CannotLockAndUnlockPilotGuest`, and the switch will report that error.
+
+---
+
+## Check-in history
+
+Uses the same My Journey endpoint as the official app:
+
+`GET /view/checkins?from&to&pfxMembershipId`
+
+| Entity type | Name | Purpose |
+|-------------|------|---------|
+| `sensor` | Check-ins | Count in the last 365 days; `checkins` attribute lists recent visits |
+| `sensor` | Last check-in | Timestamp of the most recent visit (`last_club` attribute) |
+| `button` | Refresh check-ins | Re-reads history immediately |
+
+History polls about once an hour. Older installs without a stored membership id get it backfilled from `/user-details` on the first history refresh.
 
 ---
 
@@ -86,12 +127,17 @@ pf-hacs/
         ├── manifest.json
         ├── const.py
         ├── auth.py
+        ├── api.py
         ├── totp_qr.py
         ├── config_flow.py
         ├── coordinator.py
+        ├── guest_coordinator.py
+        ├── history_coordinator.py
+        ├── entity.py
         ├── sensor.py
         ├── image.py
         ├── button.py
+        ├── switch.py
         ├── strings.json
         └── translations/en.json
 ```
@@ -109,7 +155,7 @@ pf-hacs/
    - `email`
    - `account_id`
    - `device_id`
-   - `access_token` / `refresh_token` (from Auth0; not required for day-to-day QR generation)
+   - `access_token` / `refresh_token` (from Auth0; not needed for QR generation, but used for Black Card guests)
 
 If the code is wrong or expired, the flow starts a **new** email challenge so you can try again.
 
@@ -126,8 +172,13 @@ If the code is wrong or expired, the flow starts a **new** email challenge so yo
 | `sensor` | Code seconds remaining | Seconds left in the 30s TOTP window |
 | `image` | Check-in QR | PNG suitable for dashboards |
 | `button` | Refresh QR | Force regenerate payload + PNG locally |
+| `sensor` | Guests | Black Card guest count (+ names/status attributes) |
+| `button` | Refresh guests | Re-read the guest list from the API |
+| `sensor` | Check-ins | Visit count over the last 365 days |
+| `sensor` | Last check-in | Most recent club visit timestamp |
+| `button` | Refresh check-ins | Re-read check-in history from the API |
 
-Device name: **Planet Fitness (`your@email`)**.
+Device name: **Planet Fitness (`your@email`)**. Each Black Card guest gets a linked device named **Planet Fitness Guest (`Name`)** — see [Black Card guests](#black-card-guests).
 
 ---
 
@@ -163,8 +214,10 @@ Alternative: **Picture entity** pointing at the `image.*_check_in_qr` entity, or
 | Action | Hits Planet Fitness API? |
 |--------|---------------------------|
 | Setup / re-auth (email + code) | **Yes** (Auth0 + `/user-details`) |
-| Periodic coordinator tick (~15s) | **No** — local TOTP only |
+| Periodic coordinator tick (30s) | **No** — local TOTP only |
 | Press **Refresh QR** | **No** — local regenerate |
+| Guest list poll (5 min) / guest switch | **Yes** — `/black-card/guest` |
+| Check-in history poll (1 hr) | **Yes** — `/view/checkins` |
 
 ---
 
@@ -172,7 +225,7 @@ Alternative: **Picture entity** pointing at the `image.*_check_in_qr` entity, or
 
 - Treat the config entry like a membership credential: `device_id` can mint valid door QR codes.
 - Prefer HA secrets backups that are encrypted.
-- Tokens are stored for possible future re-auth; QR generation does not need them after setup.
+- Tokens are stored for re-auth and for the guest endpoints; QR generation itself does not need them after setup.
 - This integration is for **your** account only.
 
 ---

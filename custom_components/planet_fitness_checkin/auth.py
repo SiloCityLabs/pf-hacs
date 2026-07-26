@@ -138,6 +138,7 @@ class LoginResult:
     device_id: str | None
     abc_barcode: str | None
     new_gen_user: bool
+    pfx_membership_id: str | None = None
     access_token: str | None = None
     refresh_token: str | None = None
 
@@ -264,6 +265,7 @@ async def complete_email_login(auth: AuthSession, code: str) -> LoginResult:
             device_id=profile.get("device_id"),
             abc_barcode=profile.get("abc_barcode"),
             new_gen_user=bool(profile.get("new_gen_user")),
+            pfx_membership_id=profile.get("pfx_membership_id"),
             access_token=access,
             refresh_token=refresh,
         )
@@ -506,19 +508,27 @@ async def _fetch_profile(
     )
     # Legacy keytag: memberships[0].abcBarcode (not user.membership)
     abc_barcode = None
+    pfx_membership_id = None
     memberships = _dig(root, "memberships") or _dig(root, "user", "memberships")
     if isinstance(memberships, list):
         for m in memberships:
             if not isinstance(m, dict):
                 continue
+            if not pfx_membership_id:
+                mid = None
+                for k, v in m.items():
+                    if k.lower() == "pfxmembershipid" and v:
+                        mid = v
+                        break
+                if mid:
+                    pfx_membership_id = str(mid)
             cand = None
             for k, v in m.items():
                 if k.lower() == "abcbarcode" and v:
                     cand = v
                     break
-            if cand:
+            if cand and not abc_barcode:
                 abc_barcode = str(cand)
-                break
     if not abc_barcode:
         abc_barcode = (
             _dig(root, "user", "membership", "abcBarcode")
@@ -528,6 +538,14 @@ async def _fetch_profile(
         )
         if abc_barcode is not None:
             abc_barcode = str(abc_barcode)
+    if not pfx_membership_id:
+        mid = (
+            _dig(root, "user", "membership", "pfxMembershipId")
+            or _dig(root, "membership", "pfxMembershipId")
+            or _dig(root, "pfxMembershipId")
+        )
+        if mid:
+            pfx_membership_id = str(mid)
 
     # App: UserDetails?.NewGenUser — often at result root, not under user
     new_gen = _dig(root, "newGenUser")
@@ -537,11 +555,12 @@ async def _fetch_profile(
 
     _LOGGER.info(
         "Profile dig: account_id=%s device_id=%s new_gen=%s abc_barcode=%s "
-        "memberships=%s",
+        "pfx_membership_id=%s memberships=%s",
         bool(account_id),
         bool(device_id),
         new_gen_user,
         bool(abc_barcode),
+        bool(pfx_membership_id),
         len(memberships) if isinstance(memberships, list) else 0,
     )
 
@@ -568,5 +587,6 @@ async def _fetch_profile(
         "account_id": str(account_id),
         "device_id": str(device_id) if device_id else None,
         "abc_barcode": str(abc_barcode) if abc_barcode else None,
+        "pfx_membership_id": pfx_membership_id,
         "new_gen_user": new_gen_user,
     }

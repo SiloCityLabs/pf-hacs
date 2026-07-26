@@ -13,6 +13,7 @@ CONF_NEW_GEN_USER = "new_gen_user"
 CONF_QR_FORMAT = "qr_format"
 CONF_ACCESS_TOKEN = "access_token"
 CONF_REFRESH_TOKEN = "refresh_token"
+CONF_PFX_MEMBERSHIP_ID = "pfx_membership_id"
 
 # QR payload modes (mirrors official app KeytagService / DXKeytagViewModel)
 QR_FORMAT_AUTO = "auto"
@@ -57,7 +58,25 @@ LEGACY_TIMESTAMP_FORMAT = "%m%d%Y-%H%M%S"
 # Tick often enough for TOTP countdown / legacy QR; timestamp may lag a bit (app does too)
 UPDATE_INTERVAL_SECONDS = 30
 
+# Black Card guests: re-render QR on the same 30s tick, but only hit the guest
+# list endpoint every few minutes.
+GUEST_TICK_SECONDS = 30
+GUEST_POLL_SECONDS = 300
+
+# Check-in history (My Journey): poll less often; window matches the app's year view.
+CHECKIN_POLL_SECONDS = 3600
+CHECKIN_HISTORY_DAYS = 365
+CHECKIN_ATTR_LIMIT = 50
+
 ATTR_SECONDS_REMAINING = "seconds_remaining"
 ATTR_PAYLOAD = "payload"
 ATTR_QR_FORMAT = "qr_format"
 ATTR_RESOLVED_FORMAT = "resolved_format"
+ATTR_GUEST_COUNT = "guest_count"
+ATTR_GUESTS = "guests"
+ATTR_UNLOCKED_COUNT = "unlocked_count"
+ATTR_BARCODE = "barcode"
+ATTR_USER_ID = "user_id"
+ATTR_CHECKINS = "checkins"
+ATTR_LAST_CLUB = "last_club"
+ATTR_WINDOW_DAYS = "window_days"
