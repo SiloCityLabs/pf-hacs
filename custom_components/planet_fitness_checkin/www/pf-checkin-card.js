@@ -9,7 +9,7 @@
  */
 (() => {
   const CARD_TYPE = "pf-checkin-card";
-  const ICON_URL = "/planet_fitness_checkin_static/icon.png";
+  const ICON_URL = "/planet_fitness_checkin_static/icon.png?v=2";
   const PURPLE = "#5c2d91";
 
   const STYLE = `
@@ -50,10 +50,10 @@
       box-shadow: 0 1px 3px rgba(0,0,0,.25);
     }
     .logo-wrap img {
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       object-fit: contain;
-      filter: brightness(0) invert(1);
+      /* yellow thumbs-up on purple — no invert (that washed the full logo white) */
     }
     .label {
       font-size: 0.85rem;
@@ -92,7 +92,7 @@
       background: ${PURPLE};
       padding: 4px;
       box-sizing: border-box;
-      filter: none;
+      object-fit: contain;
     }
     .dlg-head h2 {
       margin: 0;
@@ -333,11 +333,32 @@
       this.shadowRoot.querySelector(".btn").disabled = false;
     }
 
-    _showList() {
+    async _showList() {
       this._view = "list";
       this._selected = null;
       this._error = null;
+      this._syncUnlockedFromHass();
       this._paintDialog();
+      // Re-fetch so chips match server-side guest state after unlock/lock
+      try {
+        const result = await this._hass.connection.sendMessagePromise({
+          type: "planet_fitness_checkin/people",
+          entity_id: this._config.entity,
+        });
+        this._people = result.people || [];
+        if (this._view === "list") this._paintDialog();
+      } catch (_) {
+        /* keep local sync if refresh fails */
+      }
+    }
+
+    _syncUnlockedFromHass() {
+      if (!this._people || !this._hass) return;
+      for (const person of this._people) {
+        if (!person.access_entity) continue;
+        const state = this._hass.states[person.access_entity];
+        if (state) person.unlocked = state.state === "on";
+      }
     }
 
     _paintDialog() {
@@ -424,6 +445,7 @@
               entity_id: person.access_entity,
             });
           }
+          person.unlocked = true;
           await this._waitForQr(person.qr_entity, 20000);
         } else if (person.qr_entity) {
           // Member QR is always local — nudge a refresh so the PNG is fresh.
