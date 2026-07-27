@@ -15,19 +15,28 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
+from .manifest_version import VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
 _FRONTEND_URL = f"/{DOMAIN}_static"
-_CARD_JS = f"{_FRONTEND_URL}/pf-checkin-card.js"
+_CARD_PATH = f"{_FRONTEND_URL}/pf-checkin-card.js"
+_CARD_JS = f"{_CARD_PATH}?v={VERSION}"
 _STATIC_DIR = Path(__file__).parent / "www"
 
 _FRONTEND_REGISTERED = f"{DOMAIN}_frontend_registered"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
-    """Serve the Lovelace card JS/CSS and register the websocket command once."""
+    """Serve the card JS and register it as a Lovelace resource.
+
+    ``add_extra_js_url`` alone races the dashboard on cold start / Companion
+    app refresh ("Custom element doesn't exist"). Lovelace resources are what
+    HACS cards use and load reliably before the view renders.
+    """
     if hass.data.get(_FRONTEND_REGISTERED):
+        # Still keep the resource URL cache-bust in sync on reload
+        await _async_ensure_lovelace_resource(hass)
         return
 
     await hass.http.async_register_static_paths(
@@ -35,10 +44,53 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
             StaticPathConfig(_FRONTEND_URL, str(_STATIC_DIR), cache_headers=False),
         ]
     )
+    # Keep as a fallback for YAML-mode / non-Lovelace panels
     add_extra_js_url(hass, _CARD_JS)
+    await _async_ensure_lovelace_resource(hass)
     websocket_api.async_register_command(hass, websocket_list_people)
     hass.data[_FRONTEND_REGISTERED] = True
-    _LOGGER.debug("Registered Planet Fitness check-in Lovelace card at %s", _CARD_JS)
+    _LOGGER.info("Registered Planet Fitness check-in card at %s", _CARD_JS)
+
+
+async def _async_ensure_lovelace_resource(hass: HomeAssistant) -> None:
+    """Idempotently register / update the dashboard resource entry."""
+    try:
+        lovelace = hass.data.get("lovelace")
+        if lovelace is None:
+            _LOGGER.debug("Lovelace not ready; skipping resource registration")
+            return
+        resources = getattr(lovelace, "resources", None)
+        if resources is None and isinstance(lovelace, dict):
+            resources = lovelace.get("resources")
+        if resources is None:
+            _LOGGER.debug("Lovelace resources API unavailable (YAML mode?)")
+            return
+
+        # Storage mode needs an explicit load before async_items works
+        if hasattr(resources, "async_get_info"):
+            await resources.async_get_info()
+        elif hasattr(resources, "async_load") and not getattr(
+            resources, "loaded", True
+        ):
+            await resources.async_load()
+
+        items = list(resources.async_items()) if hasattr(resources, "async_items") else []
+        existing = next(
+            (item for item in items if _CARD_PATH in item.get("url", "")),
+            None,
+        )
+        if existing is None:
+            await resources.async_create_item({"res_type": "module", "url": _CARD_JS})
+            _LOGGER.info("Added Lovelace resource %s", _CARD_JS)
+            return
+
+        if existing.get("url") != _CARD_JS:
+            await resources.async_update_item(
+                existing["id"], {"res_type": "module", "url": _CARD_JS}
+            )
+            _LOGGER.info("Updated Lovelace resource → %s", _CARD_JS)
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Could not register Lovelace resource for check-in card")
 
 
 @websocket_api.websocket_command(
