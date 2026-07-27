@@ -24,6 +24,7 @@ Setup uses the same Auth0 **email code** login as the official app. After setup,
 | Local TOTP | Payload format `{AccountId}:{6-digit-TOTP}` matching the official app |
 | Black Card guests | One extra device per guest: approve (unlock) / lock, guest keytag QR, payload sensor |
 | Check-in history | Rolling 365-day count, last check-in timestamp, recent visits as attributes |
+| Lovelace card | PF-logo button → pick a person → auto-unlock guest if needed → show QR |
 
 ---
 
@@ -91,6 +92,28 @@ History polls about once an hour. Older installs without a stored membership id 
 
 ---
 
+## Lovelace card (recommended for dashboards)
+
+The integration ships a custom card that replaces the tedious “unlock guest → find QR image” dance.
+
+1. Update to **2.1.0+** and **restart** Home Assistant (hard refresh the browser too).
+2. Edit your dashboard → **Add card** → **Custom: Planet Fitness Check-In** (or Manual).
+
+```yaml
+type: custom:pf-checkin-card
+entity: image.planet_fitness_me_luisdrodriguez_com_check_in_qr
+name: PF
+```
+
+- Tap the purple PF logo button.
+- Pick **you** or a guest from the list.
+- Guests are unlocked automatically, then their QR is shown full-size.
+- If the account has no guests, it jumps straight to your QR.
+
+Point `entity` at that account’s **Check-in QR** image entity. Guests are discovered from the same config entry.
+
+---
+
 ## Requirements
 
 - Home Assistant **2024.6.0** or newer
@@ -133,11 +156,15 @@ pf-hacs/
         ├── coordinator.py
         ├── guest_coordinator.py
         ├── history_coordinator.py
+        ├── frontend.py
         ├── entity.py
         ├── sensor.py
         ├── image.py
         ├── button.py
         ├── switch.py
+        ├── www/
+        │   ├── pf-checkin-card.js
+        │   └── icon.png
         ├── strings.json
         └── translations/en.json
 ```

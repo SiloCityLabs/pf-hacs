@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from .api import PlanetFitnessApi
 from .const import DOMAIN
 from .coordinator import PlanetFitnessCoordinator, PlanetFitnessRuntime
+from .frontend import async_setup_frontend
 from .guest_coordinator import PlanetFitnessGuestCoordinator
 from .history_coordinator import PlanetFitnessHistoryCoordinator
 
@@ -24,8 +25,16 @@ PLATFORMS: list[Platform] = [
 ]
 
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Register the Lovelace card even before a config entry exists."""
+    await async_setup_frontend(hass)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Planet Fitness Check-In from a config entry."""
+    await async_setup_frontend(hass)
+
     coordinator = PlanetFitnessCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
 

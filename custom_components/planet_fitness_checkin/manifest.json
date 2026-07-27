@@ -3,11 +3,15 @@
   "name": "Planet Fitness Check-In",
   "codeowners": [],
   "config_flow": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "requirements": [
     "segno>=1.6.0"
   ],
-  "dependencies": [],
+  "dependencies": [
+    "http",
+    "frontend",
+    "websocket_api"
+  ],
   "iot_class": "cloud_polling",
   "homeassistant": "2024.6.0",
   "documentation": "https://github.com/SiloCityLabs/pf-hacs",
