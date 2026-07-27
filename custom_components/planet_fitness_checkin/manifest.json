@@ -3,7 +3,7 @@
   "name": "Planet Fitness Check-In",
   "codeowners": [],
   "config_flow": true,
-  "version": "2.1.3",
+  "version": "2.1.4",
   "requirements": [
     "segno>=1.6.0"
   ],

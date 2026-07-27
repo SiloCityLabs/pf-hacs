@@ -9,7 +9,7 @@
  */
 (() => {
   const CARD_TYPE = "pf-checkin-card";
-  const VERSION = "2.1.3";
+  const VERSION = "2.1.4";
   const ICON_URL = "/planet_fitness_checkin_static/assets/icon.png?v=" + VERSION;
   const PURPLE = "#5c2d91";
   const PREFERRED_ENTITY =

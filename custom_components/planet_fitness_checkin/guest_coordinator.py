@@ -47,6 +47,8 @@ class Guest:
     barcode: str | None = None
     payload: str | None = None
     resolved_format: str | None = None
+    # Set after PF returns CannotLockAndUnlockPilotGuest (no revoke API).
+    pilot_lock_blocked: bool = False
     png: bytes | None = field(default=None, repr=False)
 
     @property
@@ -112,12 +114,33 @@ class PlanetFitnessGuestCoordinator(DataUpdateCoordinator[dict[str, Guest]]):
         return (self.data or {}).get(key)
 
     async def async_set_access(self, key: str, unlock: bool) -> None:
-        """Unlock/lock a guest, caching the barcode the API hands back."""
+        """Unlock/lock a guest, caching the barcode the API hands back.
+
+        Unified Club Pass pilot guests reject lock/unlock
+        (``CannotLockAndUnlockPilotGuest``). Treat that as a no-op — PF keeps
+        their club access as-is and there is no alternate disable API.
+        """
         guest = self._guests.get(key)
         if guest is None:
             raise PlanetFitnessApiError(f"Unknown guest {key}")
-        result = await self.api.async_set_guest_access(guest.target_id, unlock=unlock)
+        try:
+            result = await self.api.async_set_guest_access(
+                guest.target_id, unlock=unlock
+            )
+        except PlanetFitnessApiError as err:
+            if err.is_pilot_guest_lock:
+                _LOGGER.info(
+                    "Planet Fitness does not allow %s for pilot guest %s; "
+                    "leaving club access unchanged",
+                    "unlock" if unlock else "lock",
+                    guest.full_name,
+                )
+                guest.pilot_lock_blocked = True
+                await self.async_request_refresh()
+                return
+            raise
         guest.unlocked = unlock
+        guest.pilot_lock_blocked = False
         barcode = result.get("barcode") if isinstance(result, dict) else None
         if unlock and barcode:
             guest.barcode = str(barcode)
@@ -169,6 +192,7 @@ class PlanetFitnessGuestCoordinator(DataUpdateCoordinator[dict[str, Guest]]):
                 guest.payload = existing.payload
                 guest.resolved_format = existing.resolved_format
                 guest.png = existing.png
+                guest.pilot_lock_blocked = existing.pilot_lock_blocked
             if not guest.unlocked:
                 guest.barcode = None
             seen[guest.key] = guest

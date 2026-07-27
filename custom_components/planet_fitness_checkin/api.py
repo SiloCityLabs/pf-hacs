@@ -15,6 +15,7 @@ is why the app calls it every time a guest row is tapped.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import date
 from typing import Any
@@ -36,13 +37,47 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Unified Club Pass pilot guests reject both lock and unlock.
+API_CODE_PILOT_GUEST_LOCK = "CannotLockAndUnlockPilotGuest"
+
+
+def _api_error_code(text: str) -> str | None:
+    """Pull ``errors[0].code`` from a PF BFF error body, if present."""
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    errors = payload.get("errors")
+    if isinstance(errors, list) and errors:
+        first = errors[0]
+        if isinstance(first, dict):
+            code = first.get("code")
+            return str(code) if code else None
+    return None
+
 
 class PlanetFitnessApiError(Exception):
     """Non-auth API failure."""
 
-    def __init__(self, message: str, status: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        status: int | None = None,
+        *,
+        code: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.status = status
+        self.code = code
+
+    @property
+    def is_pilot_guest_lock(self) -> bool:
+        """True when PF refuses lock/unlock for a Unified Club Pass pilot guest."""
+        if self.code == API_CODE_PILOT_GUEST_LOCK:
+            return True
+        return API_CODE_PILOT_GUEST_LOCK in str(self)
 
 
 class PlanetFitnessTokenExpired(PlanetFitnessApiError):
@@ -145,7 +180,8 @@ class PlanetFitnessApi:
                 if resp.status >= 400:
                     raise PlanetFitnessApiError(
                         f"{method} {path} failed ({resp.status}): {text[:200]}",
-                        status=resp.status,
+                        resp.status,
+                        code=_api_error_code(text),
                     )
                 if not text:
                     return None

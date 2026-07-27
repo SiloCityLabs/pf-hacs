@@ -72,7 +72,7 @@ How it maps to the app:
 - `PUT /black-card/guest/{userId}/lock` revokes access.
 - Guest QR uses the legacy keytag format: `{barcode}/mobile/{MMddyyyy-HHmmss}` (UTC), or plain barcode if you picked **Legacy barcode only**.
 
-The guest list is polled every 5 minutes; QR payloads re-render locally on the same 30-second tick as your own keytag. Guests enrolled in the Unified Club Pass pilot cannot be locked — the API rejects it with `CannotLockAndUnlockPilotGuest`, and the switch will report that error.
+The guest list is polled every 5 minutes; QR payloads re-render locally on the same 30-second tick as your own keytag. Guests enrolled in the Unified Club Pass pilot cannot be locked or unlocked via the API (`CannotLockAndUnlockPilotGuest`) — there is no alternate disable endpoint, so the Club access switch treats that as a no-op and leaves access unchanged.
 
 ---
 

@@ -58,7 +58,14 @@ class PlanetFitnessGuestAccessSwitch(GuestEntity, SwitchEntity):
         guest = self.guest
         if guest is None:
             return None
-        return {ATTR_USER_ID: guest.user_id}
+        attrs: dict[str, Any] = {ATTR_USER_ID: guest.user_id}
+        if guest.pilot_lock_blocked:
+            attrs["lock_supported"] = False
+            attrs["note"] = (
+                "Planet Fitness does not allow locking this guest "
+                "(Unified Club Pass pilot)."
+            )
+        return attrs
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_set(True)
@@ -70,4 +77,6 @@ class PlanetFitnessGuestAccessSwitch(GuestEntity, SwitchEntity):
         try:
             await self.coordinator.async_set_access(self._guest_key, unlock)
         except PlanetFitnessApiError as err:
-            raise HomeAssistantError(f"Planet Fitness guest update failed: {err}") from err
+            raise HomeAssistantError(
+                f"Planet Fitness guest update failed: {err}"
+            ) from err
