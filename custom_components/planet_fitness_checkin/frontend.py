@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
+from aiohttp import web
 from homeassistant.components import websocket_api
 from homeassistant.components.frontend import add_extra_js_url
-from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -27,6 +28,28 @@ _STATIC_DIR = Path(__file__).parent / "www"
 _FRONTEND_REGISTERED = f"{DOMAIN}_frontend_registered"
 
 
+class PfCheckinCardView(HomeAssistantView):
+    """Serve the card JS with an explicit UTF-8 charset (Companion WebView safe)."""
+
+    url = _CARD_PATH
+    name = f"{DOMAIN}:card_js"
+    requires_auth = False
+
+    async def get(self, request: web.Request) -> web.Response:
+        path = _STATIC_DIR / "pf-checkin-card.js"
+        body = await request.app["hass"].async_add_executor_job(
+            path.read_text, "utf-8"
+        )
+        return web.Response(
+            text=body,
+            content_type="text/javascript",
+            charset="utf-8",
+            headers={
+                "Cache-Control": "no-cache, must-revalidate",
+            },
+        )
+
+
 async def async_setup_frontend(hass: HomeAssistant) -> None:
     """Serve the card JS and register it as a Lovelace resource.
 
@@ -35,15 +58,23 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     HACS cards use and load reliably before the view renders.
     """
     if hass.data.get(_FRONTEND_REGISTERED):
-        # Still keep the resource URL cache-bust in sync on reload
         await _async_ensure_lovelace_resource(hass)
         return
 
+    # Icons only — card JS is served by PfCheckinCardView (charset + no-cache)
     await hass.http.async_register_static_paths(
         [
-            StaticPathConfig(_FRONTEND_URL, str(_STATIC_DIR), cache_headers=False),
+            StaticPathConfig(
+                f"{_FRONTEND_URL}/assets",
+                str(_STATIC_DIR / "assets"),
+                cache_headers=False,
+            ),
         ]
     )
+    # Card JS via view so we control Content-Type charset (static path alone
+    # often omits charset and breaks Companion WebViews on non-ASCII source).
+    hass.http.register_view(PfCheckinCardView)
+
     # Keep as a fallback for YAML-mode / non-Lovelace panels
     add_extra_js_url(hass, _CARD_JS)
     await _async_ensure_lovelace_resource(hass)
@@ -66,7 +97,6 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant) -> None:
             _LOGGER.debug("Lovelace resources API unavailable (YAML mode?)")
             return
 
-        # Storage mode needs an explicit load before async_items works
         if hasattr(resources, "async_get_info"):
             await resources.async_get_info()
         elif hasattr(resources, "async_load") and not getattr(
@@ -74,7 +104,9 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant) -> None:
         ):
             await resources.async_load()
 
-        items = list(resources.async_items()) if hasattr(resources, "async_items") else []
+        items = (
+            list(resources.async_items()) if hasattr(resources, "async_items") else []
+        )
         existing = next(
             (item for item in items if _CARD_PATH in item.get("url", "")),
             None,
@@ -88,7 +120,7 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant) -> None:
             await resources.async_update_item(
                 existing["id"], {"res_type": "module", "url": _CARD_JS}
             )
-            _LOGGER.info("Updated Lovelace resource → %s", _CARD_JS)
+            _LOGGER.info("Updated Lovelace resource -> %s", _CARD_JS)
     except Exception:  # noqa: BLE001
         _LOGGER.exception("Could not register Lovelace resource for check-in card")
 
@@ -119,7 +151,6 @@ def websocket_list_people(
     if runtime is not None:
         member_name = runtime.coordinator.email.split("@")[0]
 
-    # Collect every entity belonging to this config entry
     by_unique: dict[str, er.RegistryEntry] = {}
     for reg_entry in er.async_entries_for_config_entry(ent_reg, config_entry_id):
         if reg_entry.unique_id:
@@ -127,7 +158,6 @@ def websocket_list_people(
 
     member_qr = by_unique.get(f"{config_entry_id}_qr_image")
     if member_qr is None:
-        # Fall back to the entity the card was configured with
         member_qr = entry
 
     people: list[dict[str, Any]] = [
@@ -144,7 +174,6 @@ def websocket_list_people(
     guests_runtime = runtime.guests if runtime is not None else None
     guest_map = (guests_runtime.data or {}) if guests_runtime is not None else {}
 
-    # unique_id: {entry_id}_guest_{key}_access / _qr_image
     prefix = f"{config_entry_id}_guest_"
     guest_keys: set[str] = set()
     for unique_id in by_unique:
@@ -180,7 +209,6 @@ def websocket_list_people(
             }
         )
 
-    # Device title for the dialog header
     title = "Planet Fitness"
     if entry.device_id:
         device = dr.async_get(hass).async_get(entry.device_id)

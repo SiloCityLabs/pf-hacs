@@ -166,7 +166,7 @@ pf-hacs/
         ├── switch.py
         ├── www/
         │   ├── pf-checkin-card.js
-        │   └── icon.png
+        │   └── assets/icon.png
         ├── strings.json
         └── translations/en.json
 ```
