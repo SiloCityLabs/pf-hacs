@@ -22,18 +22,30 @@ from .manifest_version import VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
-# Primary: /local/... (config/www) — same pattern HACS cards use; most reliable
-# on Companion. Fallback view keeps charset=utf-8 for the integration path.
-_LOCAL_DIR_NAME = "planet_fitness_checkin"
-_LOCAL_CARD_PATH = f"/local/{_LOCAL_DIR_NAME}/pf-checkin-card.js"
-_LOCAL_CARD_JS = f"{_LOCAL_CARD_PATH}?v={VERSION}"
+# HACS serves www/community via /hacsfiles/ — most reliable on Companion.
+_HACS_SLUG = "pf-checkin-card"
+_HACSFILES_CARD_PATH = f"/hacsfiles/{_HACS_SLUG}/pf-checkin-card.js"
+_HACSFILES_CARD_JS = f"{_HACSFILES_CARD_PATH}?v={VERSION}"
 
+# Integration view: UTF-8 charset + no-cache (Companion-safe fallback).
 _FRONTEND_URL = f"/{DOMAIN}_static"
 _CARD_PATH = f"{_FRONTEND_URL}/pf-checkin-card.js"
 _CARD_JS = f"{_CARD_PATH}?v={VERSION}"
 _STATIC_DIR = Path(__file__).parent / "www"
 
+# Also mirror under /local for direct access / non-HACS installs.
+_LOCAL_DIR_NAME = "planet_fitness_checkin"
+_LOCAL_CARD_PATH = f"/local/{_LOCAL_DIR_NAME}/pf-checkin-card.js"
+_LOCAL_CARD_JS = f"{_LOCAL_CARD_PATH}?v={VERSION}"
+
 _FRONTEND_REGISTERED = f"{DOMAIN}_frontend_registered"
+
+# Prefer HACS endpoint, then no-cache view, then /local.
+_PREFERRED_RESOURCES = (
+    (_HACSFILES_CARD_PATH, _HACSFILES_CARD_JS),
+    (_CARD_PATH, _CARD_JS),
+    (_LOCAL_CARD_PATH, _LOCAL_CARD_JS),
+)
 
 
 class PfCheckinCardView(HomeAssistantView):
@@ -60,13 +72,8 @@ class PfCheckinCardView(HomeAssistantView):
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
-    """Serve the card JS and register it as a Lovelace resource.
-
-    Companion is flaky with custom integration URL modules after HA upgrades.
-    Mirror the card into ``config/www`` (``/local/...``) like HACS frontend
-    cards, and keep the integration view as a charset-safe fallback.
-    """
-    await _async_install_local_card(hass)
+    """Install card files and register Lovelace resources."""
+    await _async_install_card_files(hass)
     await _async_ensure_lovelace_resource(hass)
 
     if hass.data.get(_FRONTEND_REGISTERED):
@@ -83,49 +90,51 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     )
     hass.http.register_view(PfCheckinCardView)
 
-    # Prefer /local for early load; keep integration URL as secondary extra.
-    add_extra_js_url(hass, _LOCAL_CARD_JS)
+    # Extra modules load with the frontend shell (helps Companion races).
+    add_extra_js_url(hass, _HACSFILES_CARD_JS)
     add_extra_js_url(hass, _CARD_JS)
     websocket_api.async_register_command(hass, websocket_list_people)
 
     async def _on_started(_event: Any) -> None:
-        await _async_install_local_card(hass)
+        await _async_install_card_files(hass)
         await _async_ensure_lovelace_resource(hass)
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_started)
     hass.data[_FRONTEND_REGISTERED] = True
     _LOGGER.info(
         "Registered Planet Fitness check-in card at %s (fallback %s)",
-        _LOCAL_CARD_JS,
+        _HACSFILES_CARD_JS,
         _CARD_JS,
     )
 
 
-async def _async_install_local_card(hass: HomeAssistant) -> None:
-    """Copy card + icon into config/www for /local/ serving."""
+async def _async_install_card_files(hass: HomeAssistant) -> None:
+    """Copy card + icon into www/community (hacsfiles) and www/local mirror."""
 
-    def _copy() -> Path:
-        dest = Path(hass.config.path("www")) / _LOCAL_DIR_NAME
-        dest.mkdir(parents=True, exist_ok=True)
+    def _copy() -> None:
         src_js = _STATIC_DIR / "pf-checkin-card.js"
-        (dest / "pf-checkin-card.js").write_text(
-            src_js.read_text(encoding="utf-8"), encoding="utf-8"
-        )
         src_assets = _STATIC_DIR / "assets"
-        if src_assets.is_dir():
-            dest_assets = dest / "assets"
-            dest_assets.mkdir(exist_ok=True)
-            for file in src_assets.iterdir():
-                if file.is_file():
-                    shutil.copy2(file, dest_assets / file.name)
-        return dest
+        body = src_js.read_text(encoding="utf-8")
 
-    dest = await hass.async_add_executor_job(_copy)
-    _LOGGER.debug("Installed check-in card assets into %s", dest)
+        targets = [
+            Path(hass.config.path("www")) / "community" / _HACS_SLUG,
+            Path(hass.config.path("www")) / _LOCAL_DIR_NAME,
+        ]
+        for dest in targets:
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "pf-checkin-card.js").write_text(body, encoding="utf-8")
+            if src_assets.is_dir():
+                dest_assets = dest / "assets"
+                dest_assets.mkdir(exist_ok=True)
+                for file in src_assets.iterdir():
+                    if file.is_file():
+                        shutil.copy2(file, dest_assets / file.name)
+
+    await hass.async_add_executor_job(_copy)
 
 
 async def _async_ensure_lovelace_resource(hass: HomeAssistant) -> None:
-    """Idempotently register / update the dashboard resource entry."""
+    """Keep a single Lovelace module resource on the preferred URL."""
     try:
         lovelace = hass.data.get("lovelace")
         if lovelace is None:
@@ -149,40 +158,32 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant) -> None:
             list(resources.async_items()) if hasattr(resources, "async_items") else []
         )
 
-        # Prefer a single /local/ resource; migrate any old integration-path entry.
-        local = next(
-            (item for item in items if _LOCAL_CARD_PATH in item.get("url", "")),
-            None,
-        )
-        legacy = next(
-            (item for item in items if _CARD_PATH in item.get("url", "")),
-            None,
-        )
+        preferred_path, preferred_url = _PREFERRED_RESOURCES[0]
+        related = [
+            item
+            for item in items
+            if any(path in item.get("url", "") for path, _ in _PREFERRED_RESOURCES)
+        ]
 
-        if local is None and legacy is not None:
-            await resources.async_update_item(
-                legacy["id"], {"res_type": "module", "url": _LOCAL_CARD_JS}
-            )
-            _LOGGER.info("Migrated Lovelace resource -> %s", _LOCAL_CARD_JS)
-            return
-
-        if local is None:
+        if not related:
             await resources.async_create_item(
-                {"res_type": "module", "url": _LOCAL_CARD_JS}
+                {"res_type": "module", "url": preferred_url}
             )
-            _LOGGER.info("Added Lovelace resource %s", _LOCAL_CARD_JS)
+            _LOGGER.info("Added Lovelace resource %s", preferred_url)
             return
 
-        if local.get("url") != _LOCAL_CARD_JS:
+        primary = related[0]
+        if preferred_path not in primary.get("url", "") or primary.get(
+            "url"
+        ) != preferred_url:
             await resources.async_update_item(
-                local["id"], {"res_type": "module", "url": _LOCAL_CARD_JS}
+                primary["id"], {"res_type": "module", "url": preferred_url}
             )
-            _LOGGER.info("Updated Lovelace resource -> %s", _LOCAL_CARD_JS)
+            _LOGGER.info("Updated Lovelace resource -> %s", preferred_url)
 
-        # Drop duplicate legacy entry if both somehow exist
-        if legacy is not None and local is not None and legacy["id"] != local["id"]:
-            await resources.async_delete_item(legacy["id"])
-            _LOGGER.info("Removed legacy Lovelace resource %s", legacy.get("url"))
+        for extra in related[1:]:
+            await resources.async_delete_item(extra["id"])
+            _LOGGER.info("Removed duplicate Lovelace resource %s", extra.get("url"))
     except Exception:  # noqa: BLE001
         _LOGGER.exception("Could not register Lovelace resource for check-in card")
 

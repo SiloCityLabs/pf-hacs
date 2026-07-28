@@ -103,7 +103,9 @@ The integration ships a custom card that replaces the tedious “unlock guest �
 1. Update to **2.1.0+** and **restart** Home Assistant (hard refresh the browser too).
 2. Edit your dashboard → **Add card** → **Custom: Planet Fitness Check-In** (or Manual).
 
-The card JS is copied into Home Assistant’s ``www`` folder and registered as a Lovelace resource at `/local/planet_fitness_checkin/pf-checkin-card.js` (same `/local/` pattern as HACS cards — most reliable on Companion). If you still see `Custom element doesn't exist: pf-checkin-card`, open **Settings → Dashboards → ⋮ → Resources**, confirm that `/local/` URL is listed as a **module**, then force-close and reopen the Companion app.
+The card JS is installed into ``config/www/community/pf-checkin-card/`` and registered as a Lovelace **module** at `/hacsfiles/pf-checkin-card/pf-checkin-card.js` (same endpoint other HACS cards use — most reliable on Companion). A no-cache fallback is also served at `/planet_fitness_checkin_static/pf-checkin-card.js`.
+
+If you still see `Custom element doesn't exist: pf-checkin-card`, open **Settings → Dashboards → ⋮ → Resources**, confirm the `/hacsfiles/pf-checkin-card/...` URL is listed as a **module**, then force-close the Companion app (clear app cache if needed) and reopen.
 
 ```yaml
 type: custom:pf-checkin-card

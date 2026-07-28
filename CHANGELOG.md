@@ -5,6 +5,12 @@ All notable changes to **Planet Fitness Check-In** (`pf-hacs`) are documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project versions with [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.7] - 2026-07-28
+
+### Fixed
+
+- Companion card load: install into `www/community` and register via `/hacsfiles/pf-checkin-card/` (same endpoint as other HACS cards); keep no-cache integration URL as fallback. `/local/` alone was getting a 31-day cache and could stick on a failed fetch after upgrades.
+
 ## [2.1.6] - 2026-07-28
 
 ### Fixed
@@ -113,6 +119,7 @@ and this project versions with [Semantic Versioning](https://semver.org/spec/v2.
 - Config flow login via Planet Fitness Auth0 email code
 - Local QR image entity (no continuous Planet Fitness API traffic for the member keytag)
 
+[2.1.7]: https://github.com/SiloCityLabs/pf-hacs/commit/HEAD
 [2.1.6]: https://github.com/SiloCityLabs/pf-hacs/commit/6e5a9af
 [2.1.5]: https://github.com/SiloCityLabs/pf-hacs/commit/9283059
 [2.1.4]: https://github.com/SiloCityLabs/pf-hacs/commit/2cc11d6

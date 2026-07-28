@@ -9,8 +9,8 @@
  */
 (() => {
   const CARD_TYPE = "pf-checkin-card";
-  const VERSION = "2.1.6";
-  const ICON_URL = "/local/planet_fitness_checkin/assets/icon.png?v=" + VERSION;
+  const VERSION = "2.1.7";
+  const ICON_URL = "/hacsfiles/pf-checkin-card/assets/icon.png?v=" + VERSION;
   const PURPLE = "#5c2d91";
   const PREFERRED_ENTITY =
     "image.planet_fitness_me_luisdrodriguez_com_check_in_qr";
