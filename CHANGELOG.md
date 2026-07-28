@@ -5,6 +5,12 @@ All notable changes to **Planet Fitness Check-In** (`pf-hacs`) are documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project versions with [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.8] - 2026-07-28
+
+### Fixed
+
+- Companion `Custom element doesn't exist`: card JS is an ES module and must not be wrapped in an IIFE (define never ran on WebView)
+
 ## [2.1.7] - 2026-07-28
 
 ### Fixed
@@ -119,6 +125,7 @@ and this project versions with [Semantic Versioning](https://semver.org/spec/v2.
 - Config flow login via Planet Fitness Auth0 email code
 - Local QR image entity (no continuous Planet Fitness API traffic for the member keytag)
 
+[2.1.8]: https://github.com/SiloCityLabs/pf-hacs/commit/PENDING
 [2.1.7]: https://github.com/SiloCityLabs/pf-hacs/commit/41ba6c8
 [2.1.6]: https://github.com/SiloCityLabs/pf-hacs/commit/6e5a9af
 [2.1.5]: https://github.com/SiloCityLabs/pf-hacs/commit/9283059

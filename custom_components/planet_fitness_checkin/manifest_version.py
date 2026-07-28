@@ -1,3 +1,3 @@
 """Integration version (kept in sync with manifest.json)."""
 
-VERSION = "2.1.7"
+VERSION = "2.1.8"
