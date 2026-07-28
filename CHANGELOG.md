@@ -5,6 +5,12 @@ All notable changes to **Planet Fitness Check-In** (`pf-hacs`) are documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project versions with [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.6] - 2026-07-28
+
+### Fixed
+
+- Companion `Custom element doesn't exist: pf-checkin-card` after HA upgrades: mirror the card into `/local/planet_fitness_checkin/` (config/www) and register that Lovelace resource, matching how HACS frontend cards load
+
 ## [2.1.5] - 2026-07-28
 
 ### Fixed
@@ -107,6 +113,7 @@ and this project versions with [Semantic Versioning](https://semver.org/spec/v2.
 - Config flow login via Planet Fitness Auth0 email code
 - Local QR image entity (no continuous Planet Fitness API traffic for the member keytag)
 
+[2.1.6]: https://github.com/SiloCityLabs/pf-hacs/commit/HEAD
 [2.1.5]: https://github.com/SiloCityLabs/pf-hacs/commit/9283059
 [2.1.4]: https://github.com/SiloCityLabs/pf-hacs/commit/2cc11d6
 [2.1.3]: https://github.com/SiloCityLabs/pf-hacs/commit/05d7f18
