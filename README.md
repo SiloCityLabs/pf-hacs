@@ -90,6 +90,8 @@ Uses the same My Journey endpoint as the official app:
 | `sensor` | Last check-in | Timestamp of the most recent visit (`last_club` attribute) |
 | `button` | Refresh check-ins | Re-reads history immediately |
 
+PF returns check-in `dateTime` values with a `Z` suffix, but the wall-clock times are **club-local** (not true UTC). The integration interprets them in your Home Assistant timezone so weekday ~8 PM / Sunday ~5 PM visits show correctly.
+
 History polls about once an hour. Older installs without a stored membership id get it backfilled from `/user-details` on the first history refresh.
 
 ---

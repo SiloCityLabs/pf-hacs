@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -28,16 +28,30 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _parse_checkin_dt(value: Any) -> datetime | None:
+    """Parse a check-in ``dateTime`` from the PF My Journey API.
+
+    The API returns ISO strings with a ``Z`` / ``+00:00`` suffix, but the
+    wall-clock values match club-local time (e.g. ~20:00 weekday / ~17:00
+    Sunday Eastern), not true UTC. Treating the suffix as real UTC shifts
+    times by the local offset (wrong by 4–5 hours in EST/EDT).
+
+    Strip any claimed offset and attach Home Assistant's configured timezone,
+    then callers can ``as_utc`` for timestamp entities.
+    """
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    if not isinstance(value, str) or not value:
+        parsed = value
+    elif isinstance(value, str) and value:
+        parsed = dt_util.parse_datetime(value)
+        if parsed is None:
+            return None
+    else:
         return None
-    parsed = dt_util.parse_datetime(value)
-    if parsed is None:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+    if parsed.tzinfo is not None:
+        parsed = parsed.replace(tzinfo=None)
+    return dt_util.as_local(parsed)
 
 
 def _extract_membership_id(profile: dict[str, Any]) -> str | None:
@@ -88,7 +102,7 @@ class PlanetFitnessHistoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 raise UpdateFailed(
                     "No pfxMembershipId on this account — check-in history unavailable"
                 )
-            today = date.today()
+            today = dt_util.now().date()
             raw = await self.api.async_get_checkins(
                 membership_id=membership_id,
                 from_date=today - timedelta(days=CHECKIN_HISTORY_DAYS),

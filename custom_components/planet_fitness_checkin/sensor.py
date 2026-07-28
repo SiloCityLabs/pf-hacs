@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_BARCODE,
@@ -278,7 +279,10 @@ class PlanetFitnessLastCheckinSensor(
         if not self.coordinator.data:
             return None
         value = self.coordinator.data.get("last_checkin")
-        return value if isinstance(value, datetime) else None
+        if not isinstance(value, datetime):
+            return None
+        # TIMESTAMP sensors expect UTC; frontend converts to HA local TZ
+        return dt_util.as_utc(value)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

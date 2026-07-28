@@ -5,6 +5,12 @@ All notable changes to **Planet Fitness Check-In** (`pf-hacs`) are documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project versions with [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.5] - 2026-07-28
+
+### Fixed
+
+- Last check-in / history timestamps: PF My Journey returns local wall-clock times with a misleading `Z` suffix; interpret them in the Home Assistant timezone so weekday ~8 PM / Sunday ~5 PM visits display correctly
+
 ## [2.1.4] - 2026-07-26
 
 ### Fixed
@@ -101,6 +107,7 @@ and this project versions with [Semantic Versioning](https://semver.org/spec/v2.
 - Config flow login via Planet Fitness Auth0 email code
 - Local QR image entity (no continuous Planet Fitness API traffic for the member keytag)
 
+[2.1.5]: https://github.com/SiloCityLabs/pf-hacs/commit/HEAD
 [2.1.4]: https://github.com/SiloCityLabs/pf-hacs/commit/2cc11d6
 [2.1.3]: https://github.com/SiloCityLabs/pf-hacs/commit/05d7f18
 [2.1.2]: https://github.com/SiloCityLabs/pf-hacs/commit/71b5e88
