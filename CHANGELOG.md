@@ -125,7 +125,7 @@ and this project versions with [Semantic Versioning](https://semver.org/spec/v2.
 - Config flow login via Planet Fitness Auth0 email code
 - Local QR image entity (no continuous Planet Fitness API traffic for the member keytag)
 
-[2.1.8]: https://github.com/SiloCityLabs/pf-hacs/commit/PENDING
+[2.1.8]: https://github.com/SiloCityLabs/pf-hacs/commit/95407a6
 [2.1.7]: https://github.com/SiloCityLabs/pf-hacs/commit/41ba6c8
 [2.1.6]: https://github.com/SiloCityLabs/pf-hacs/commit/6e5a9af
 [2.1.5]: https://github.com/SiloCityLabs/pf-hacs/commit/9283059
